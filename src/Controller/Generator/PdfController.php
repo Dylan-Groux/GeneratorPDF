@@ -2,6 +2,8 @@
 
     namespace App\Controller\Generator;
 
+    use Twig\Environment;
+
     use Dompdf\Dompdf;
     use Dompdf\Options;
 
@@ -12,11 +14,16 @@
     class PdfController extends AbstractController 
     {
         #[Route('/pdf', name: 'app_pdf')]
-        public function generatePdf() : Response
+        public function generatePdf(Environment $twig) : Response
         {
+
+            $html = $twig->render('pdf.html.twig', [
+                'title' => 'Welcome to our PDF Test',
+            ]);
+
             // instantiate and use the dompdf class
             $dompdf = new Dompdf();
-            $dompdf->loadHtml('hello world je suis une brouette de merde');
+            $dompdf->loadHtml($html);
 
             // (Optional) Setup the paper size and orientation
             $dompdf->setPaper('A4', 'landscape');
@@ -31,5 +38,6 @@
                     200,
                     ['Content-Type' => 'application/pdf', 'Content-Disposition' => 'inline; filename="testbrouette.pdf"']
                 );
+            
         }
 }
