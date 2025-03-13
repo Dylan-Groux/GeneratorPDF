@@ -9,6 +9,8 @@
     use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
     use setasign\Fpdi\Fpdi;
     use setasign\Fpdi\PdfReader;
+    use Symfony\Component\HttpFoundation\JsonResponse;
+    use mikehaertl\pdftk\Pdf;
 
     use App\Entity\User;
 
@@ -18,57 +20,48 @@
         #[Route ('/pdf', name: 'app_pdf')]
         public function generatePdf(EntityManagerInterface $em) : Response
         {
-            //Récupérer un utilisateur depuis la base de données
-            $user = $em->getRepository(User::class)->find(1); // 1 = id utilisateur
-            if (!$user) {
-                throw $this->createNotFoundException("L'utilisateur n'a pas été trouvé");
-            }
+            //On donne le chemin du PDF
+            $pdfPath = $this->getParameter('kernel.project_dir') . '/public/pdf/2033-sd_5015form.pdf';
 
-            //Récupérer Le nom de l'utilisateur
-            $userName = $user->getName();
-            $userFirstName = $user->getPrenom();
-
-
-            //Logique de création du PDF
-            $pdfPath = $this->getParameter('kernel.project_dir').'/public/pdf/2033-sd_5015.pdf';
-
-            if(!file_exists($pdfPath))
-            {
-                throw $this->createNotFoundException('Le fichier PDF est introuvable');
-            }
-            
-
-            // Charger le PDF existant avec FPDI
-            $pdf = new Fpdi();
-            $pdf->setSourceFile($pdfPath);
-            $pageCount = $pdf->setSourceFile($pdfPath);
-            //Boucle qui retourne la totalité des pages dispnobiles dans le pdf
-            for ($pagePdf = 1; $pagePdf <= $pageCount; $pagePdf++) {
-                $templateId = $pdf->importPage($pagePdf);
-                $pdf->AddPage();
-                $pdf->useTemplate($templateId);
-            
-
-            if ($pagePdf == 2) {
-                // Définir la police et la taille
-                $pdf->SetFont('Helvetica', 'B', 14);
-                // Définir la position du texte (exemple : 50mm à droite, 100mm en hauteur)
-                $pdf->SetXY(50, 100);
-                // Ajouter du texte
-                $pdf->Cell(0, 10, $userName, 0, 1);
-                $pdf->SetXY(70, 100);
-                $pdf->Cell(0, 10, $userFirstName, 0, 1);
-            }
+            //On Récupère le pdf via son pdfPath et on défini son type et sa disposition
+            return new Response(file_get_contents($pdfPath), 200, [
+                'Content-Type' => 'application/pdf',
+                'Content-Disposition' => 'inline; filename="2033-sd_5015form.pdf"',
+            ]);
         }
 
+        #[Route('/pdf/fields', name: 'app_pdf_fields')]
+        public function getPdfFields(): JsonResponse
+        {
+            //Définit la route du PDF
+            $pdfPath = $this->getParameter('kernel.project_dir') . '/public/pdf/2033-sd_5015form.pdf';
 
+            //Vérifie que le PDF est bien trouvé sinon retourne une erreur
+            if (!file_exists($pdfPath)) {
+                return new JsonResponse(['error' => 'Le fichier PDF est introuvable !'], 404);
+            }
+            
+            //Définit les variables du PDF
+            $pdf = new Pdf($pdfPath);
+            $fields = $pdf->getDataFields(); //Méthode getDataFields pour récupérer automatique les champs d'un pdf.
 
-        
-            //Retourner le PDF généré en réponse
-            $response = new Response($pdf->Output('document.pdf', 'I'));
-            $response->headers->set('Content-Type', 'application/pdf');
-            $response->headers->set('Content-Disposition', 'inline; filename="document.pdf"');
+            //Vérifie que les champs du pdf sont bien récupérer sinon retourne une erreur
+            if(!$fields) {
+                return new JsonResponse("La Data du formulaire n'a pas été récupérées", 404);
+            }
+            
+            //Définit la variable qui vas stockés les champs du PDF
+            $fieldData = [];
 
-            return $response;
+            //Boucle pour parcourir tous les champs et les stockés dans la variable dédiée
+            foreach ($fields as $field) {
+                $fieldData[] = [
+                    'FieldName' => $field['FieldName'] ?? null,
+                    'FieldType' => $field['FieldType'] ?? null,
+                    'FieldValue' => $field['FieldValue'] ?? null,
+                ];
+            }
+    
+            return new JsonResponse($fieldData);
         }
-}
+    }
