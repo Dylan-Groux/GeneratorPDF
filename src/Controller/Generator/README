@@ -1,0 +1,59 @@
+# Les différents problèmes rencontrés dans le contrôleur dédié à la création du PDF via une route API
+
+## Introduction
+
+PDFTK n'est pas une bibliothèque PHP native, mais un outil en ligne de commande permettant de manipuler des fichiers PDF, comme remplir des formulaires, fusionner ou séparer des documents. Cependant, grâce à la bibliothèque `mikehaertl/pdftk-php`, il est possible d'interagir avec PDFTK directement depuis PHP. Cette bibliothèque permet d'exécuter les commandes PDFTK via le programme installé sur le serveur, offrant ainsi une interface PHP simple pour travailler avec des fichiers PDF.
+
+---
+
+## 1. Installation de `mikehaertl\pdftk\Pdf`
+Pour utiliser cette bibliothèque dans une application PHP sur un site web, il est essentiel que le programme PDFTK soit installé sur le serveur où l'application est hébergée. En effet, la bibliothèque PHP appelle l'outil PDFTK en ligne de commande, donc une installation préalable de PDFTK est nécessaire. Selon l'environnement de serveur, il peut être nécessaire de s'assurer que PDFTK est correctement installé et accessible via le chemin du système.
+
+De plus, pour pouvoir effectuer le `composer require` de `mikehaertl/pdftk`, il est impératif que les extensions PHP suivantes soient activées sur le serveur ou la machine local :
+
+- **sodium**
+- **fileinfo**
+
+Ces extensions sont nécessaires pour garantir le bon fonctionnement de la bibliothèque et éviter toute erreur lors de son installation ou de son utilisation.
+
+---
+
+## 2. Champs formulaire et syntaxe
+
+Dans le contrôleur `PdfGeneratorController`, pour associer une valeur à une zone de texte dans le formulaire, il est très important de faire attention à la syntaxe.
+
+```php
+$fieldValues = [
+    /* <----! DGFiP N°2033-A-SD 2025 !----> */
+    'designation_entreprise' => 'Chocolaterie and bonbon super sucrer',
+    'adresse_entreprise' => '18 rue de la paix, 75000 Paris',
+    'siret' => '123456789',
+    'duree_exercice_mois' => '12',
+    'duree_exercice' => '1',
+    'duree_exercice_n_clos' => '12',
+];
+```
+
+Cette variable stocke, via un tableau associatif, les valeurs. Par exemple, `'designation_entreprise'` correspond au nom de la zone de texte dans le formulaire. Elle est accessible via LibreOffice Draw en suivant ces étapes :
+
+1. Aller dans **Affichage** -> **Barre d'outils** -> **Contrôle de formulaire**.
+2. Activer le **Mode de conception** (si non actif).
+3. Effectuer un clic droit sur la zone de texte -> **Propriétés du contrôle**.
+4. Le champ **Nom** permet de définir l'ID qui sera récupéré et géré par le backend PHP.
+
+### Attention
+
+Cette zone ne supprime pas les espaces en trop. Cela signifie que si, dans votre champ **Nom**, vous avez `'designation_entreprise '` (avec un espace à la fin), celui-ci sera comptabilisé. Ainsi, `'designation_entreprise'` sera différent de `'designation_entreprise '`.
+
+### Comportement par défaut de PDFTK avec les tableaux associatifs
+
+PDFTK associe automatiquement les champs des formulaires PDF en utilisant une correspondance clé-valeur basée sur le tableau associatif fourni. Chaque clé du tableau représente le nom du champ dans le formulaire PDF, et chaque valeur correspond à la donnée qui sera insérée dans ce champ.
+
+Par exemple, si le tableau associatif contient l'entrée suivante :
+
+```php
+'designation_entreprise' => 'Chocolaterie and bonbon super sucrer',
+```
+
+PDFTK associera automatiquement le champ nommé `designation_entreprise` dans le formulaire PDF à la valeur `Chocolaterie and bonbon super sucrer`. Il est donc essentiel de s'assurer que les noms des champs dans le tableau associatif correspondent exactement aux noms définis dans le formulaire PDF, sans espaces ou caractères superflus.
+
